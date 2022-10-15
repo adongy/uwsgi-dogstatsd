@@ -1,7 +1,0 @@
-language: python
-dist: trusty
-python:
-  - "2.7"
-  - "2.6"
-
-script:  bash -c ./test.sh
