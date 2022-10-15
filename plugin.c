@@ -11,6 +11,7 @@ this is a stats pusher plugin for DogStatsD:
 example:
 
 --stats-push dogstatsd:127.0.0.1:8125,myinstance
+--stats-push dogstatsd:/var/run/datadog.sock,myinstance
 
 exports values exposed by the metric subsystem to a Datadog Agent StatsD server
 
@@ -193,20 +194,20 @@ static void stats_pusher_dogstatsd(struct uwsgi_stats_pusher_instance *uspi, tim
     }
 
     char *colon = strchr(uspi->arg, ':');
-    if (!colon) {
-      uwsgi_log("invalid dd address %s\n", uspi->arg);
-      if (comma) *comma = ',';
-      free(sn);
-      return;
+    int type;
+    if (colon) {
+      type = AF_INET;
+      sn->addr_len = socket_to_in_addr(uspi->arg, colon, 0, &sn->addr.sa_in);
+    } else {
+      type = AF_UNIX;
+      sn->addr_len = socket_to_un_addr(uspi->arg, &sn->addr.sa_un);
     }
-    sn->addr_len = socket_to_in_addr(uspi->arg, colon, 0, &sn->addr.sa_in);
-
-    sn->fd = socket(AF_INET, SOCK_DGRAM, 0);
+    sn->fd = socket(type, SOCK_DGRAM, 0);
     if (sn->fd < 0) {
       uwsgi_error("stats_pusher_dogstatsd()/socket()");
       if (comma) *comma = ',';
-                        free(sn);
-                        return;
+      free(sn);
+      return;
     }
     uwsgi_socket_nb(sn->fd);
     if (comma) *comma = ',';
